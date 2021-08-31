@@ -1,0 +1,189 @@
+---
+title: "SD"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+```
+### Excercise 1
+```{r}
+RI_values <- read.csv("~/Downloads/RI_values.csv")
+
+```
+```{r}
+RI_values %>% subset(RI_values$Compound.Name == '[11005] myristic acid [16.887]') -> subset_RI
+
+```
+```{r}
+ggplot(subset_RI, aes(x=Retention.index)) + geom_histogram(bins = 15)
+```
+
+The shape of distribution:
+  mildly skewed but not sufficient data points
+since n is 227 , greater than 30, as per CLT, it is reasonable to state that the data follows normal distribution.
+
+
+### Excercise 2
+
+
+
+```{r}
+mean (as.vector(subset_RI$Retention.index))
+sd(as.vector(subset_RI$Retention.index))
+```
+
+```{r}
+RI <- subset_RI$Retention.index
+n_tbl <- tibble(n5 = vector(),n10 = vector(),n15 = vector(),n20 = vector(),n30 = vector(),n50 = vector())
+for (i in seq(1:1000)){
+  n_tbl%>%
+    add_row(n5=mean(sample(RI,size = 5)),
+            n10=mean(sample(RI,size = 10)),
+            n15=mean(sample(RI,size = 15)),
+            n20=mean(sample(RI,size = 20)),
+            n30=mean(sample(RI,size = 30)),
+            n50=mean(sample(RI,size = 50))) ->n_tbl
+}
+```
+
+```{r}
+#Convert to long form
+n_tbl %>%
+  pivot_longer(everything(), names_to = "sample_size", values_to = "Sample_Means") -> n_long_tbl
+```
+#Plot all sample mean distributions
+
+```{r}
+
+#levels(n_long_tbl$sample_size) <- c("n5", "n10", "n15", "n20", "n30", "n50")
+n_long_tbl %>%
+  ggplot(aes(x=Sample_Means)) +
+  geom_histogram(fill="blue", color="black", bins = sqrt(nrow(n_long_tbl))) +
+facet_wrap(facets = vars(factor(sample_size, levels = c("n5", "n10","n15", "n20","n30", "n50"))))
+ 
+```
+
+
+
+
+As the sample size increases, the std deviations decreases resulting in histograms that are more narrower and more closely resembles the normal distribution.
+
+
+
+```{r}
+n_long_tbl %>% 
+group_by(sample_size) %>%
+summarise_at(vars('Sample_Means'),list(Value = mean)) -> mean_summary
+
+n_long_tbl %>% 
+group_by(sample_size) %>%
+summarise_at(vars(`Sample_Means`),list(Value = sd)) -> sd_summary
+
+```
+
+The values are close to what we expected from the graph
+
+
+#Excersise 3
+```{r}
+RI_values %>% subset(RI_values$Compound.Name == '[1004] phosphoric acid [9.966]') -> df3
+
+```
+
+```{r}
+ggplot(df3, aes(x=Retention.index)) + geom_histogram(bins = 15)
+```
+
+It is a skewed left distribution in which the tail is to the left and is unimodal.
+Non-symmetric distribution and not a normal distribution
+
+# Excercise 4
+```{r}
+mean (as.vector(df3$Retention.index))
+sd(as.vector(df3$Retention.index))
+```
+
+```{r}
+RI <- df3$Retention.index
+random_tbl <- tibble(n5 = vector(),n10 = vector(),n15 = vector(),n20 = vector(),n30 = vector(),n50 = vector())
+for (i in seq(1:1000)){
+  random_tbl%>%
+    add_row(n5=mean(sample(RI,size = 5)),
+            n10=mean(sample(RI,size = 10)),
+            n15=mean(sample(RI,size = 15)),
+            n20=mean(sample(RI,size = 20)),
+            n30=mean(sample(RI,size = 30)),
+            n50=mean(sample(RI,size = 50))) ->random_tbl_mean_2
+}
+```
+
+```{r}
+#Convert to long form
+random_tbl_mean_2 %>%
+  pivot_longer(everything(), names_to = "sample_size", values_to = "Sample Means") -> random_long_tbl_mean_2
+```
+
+```{r}
+temp <- random_long_tbl_mean_2$`Sample Means`
+
+
+random_long_tbl_mean_2 %>%
+  ggplot(aes(x=temp)) +
+  geom_histogram(fill="blue", color="black", bins = sqrt(nrow(random_long_tbl_mean_2))) +
+  facet_wrap(facets = vars(factor(sample_size, levels = c("n5", "n10","n15", "n20","n30", "n50"))))
+```
+
+As n increases, 
+the mean and the std deviation do not change except for n5. 
+n50 follows normal distribution as sample size is larger than 
+
+# Exercise 5
+
+1. Null Hypothesis:  mu is 1526.236
+   Alternate Hypothesis: mu /NE 1526.236
+   
+
+```{r}
+
+#t-score
+#p-value
+
+
+p_tbl <- tibble(p25 = vector())
+for (i in seq(1:10000)){
+  this_sample <- sample(df3$Retention.index,size = 25)
+  this_mean <- mean(this_sample)
+  this_sd <- sd(this_sample)
+  this_t <- (this_mean-1526.236)/(this_sd/sqrt(25))
+  this_p <- 2*pt(-abs(this_t),df=24)
+  p_tbl %>%
+    add_row(p25 = this_p) -> p_tbl
+}
+     
+```
+
+
+```{r}
+p_tbl %>% 
+  ggplot(aes(x=p25))+
+  geom_histogram(fill='grey', color='black', bins = sqrt(nrow(p_tbl)))
+```
+```{r}
+p_tbl %>%
+  filter(p25<=0.05) -> reject_null
+p_tbl %>%
+  filter(p25>0.05) -> reject_alt
+
+nrow(reject_alt)/nrow(p_tbl)
+nrow(reject_null)/nrow(p_tbl)
+```
+
+
+The proportion of p-values that reject the alternative hypothesis: `r nrow(reject_alt)/nrow(p_tbl)`
+The proportion of p-values that reject the null hypothesis : `r nrow(reject_null)/nrow(p_tbl)`
+
+
+
